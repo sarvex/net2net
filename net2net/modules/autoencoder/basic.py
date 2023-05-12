@@ -82,9 +82,8 @@ class ActNorm(nn.Module):
                     "Initializing ActNorm in reverse direction is "
                     "disabled by default. Use allow_reverse_init=True to enable."
                 )
-            else:
-                self.initialize(output)
-                self.initialized.fill_(1)
+            self.initialize(output)
+            self.initialized.fill_(1)
 
         if len(output.shape) == 2:
             output = output[:,:,None,None]
@@ -102,8 +101,7 @@ class ActNorm(nn.Module):
 class BasicFullyConnectedNet(nn.Module):
     def __init__(self, dim, depth, hidden_dim=256, use_tanh=False, use_bn=False, out_dim=None, use_an=False):
         super(BasicFullyConnectedNet, self).__init__()
-        layers = []
-        layers.append(nn.Linear(dim, hidden_dim))
+        layers = [nn.Linear(dim, hidden_dim)]
         if use_bn:
             assert not use_an
             layers.append(nn.BatchNorm1d(hidden_dim))
@@ -111,7 +109,7 @@ class BasicFullyConnectedNet(nn.Module):
             assert not use_bn
             layers.append(ActNorm(hidden_dim))
         layers.append(nn.LeakyReLU())
-        for d in range(depth):
+        for _ in range(depth):
             layers.append(nn.Linear(hidden_dim, hidden_dim))
             if use_bn:
                 layers.append(nn.BatchNorm1d(hidden_dim))

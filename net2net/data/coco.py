@@ -13,11 +13,7 @@ class CocoBase(Dataset):
                  crop_size=None, force_no_crop=False):
         self.split = self.get_split()
         self.size = size
-        if crop_size is None:
-            self.crop_size = size
-        else:
-            self.crop_size = crop_size
-
+        self.crop_size = size if crop_size is None else crop_size
         self.onehot = onehot_segmentation       # return segmentation as rgb or one hot
         self.stuffthing = use_stuffthing        # include thing in segmentation
         if self.onehot and not self.stuffthing:
@@ -28,9 +24,9 @@ class CocoBase(Dataset):
         data_json = datajson
         with open(data_json) as json_file:
             self.json_data = json.load(json_file)
-            self.img_id_to_captions = dict()
-            self.img_id_to_filepath = dict()
-            self.img_id_to_segmentation_filepath = dict()
+            self.img_id_to_captions = {}
+            self.img_id_to_filepath = {}
+            self.img_id_to_segmentation_filepath = {}
 
         assert data_json.split("/")[-1] in ["captions_train2017.json",
                                             "captions_val2017.json"]
@@ -47,10 +43,10 @@ class CocoBase(Dataset):
                 "data/coco/annotations/stuff_train2017_pixelmaps")
 
         imagedirs = self.json_data["images"]
-        self.labels = {"image_ids": list()}
+        self.labels = {"image_ids": []}
         for imgdir in tqdm(imagedirs, desc="ImgToPath"):
             self.img_id_to_filepath[imgdir["id"]] = os.path.join(dataroot, imgdir["file_name"])
-            self.img_id_to_captions[imgdir["id"]] = list()
+            self.img_id_to_captions[imgdir["id"]] = []
             pngfilename = imgdir["file_name"].replace("jpg", "png")
             self.img_id_to_segmentation_filepath[imgdir["id"]] = os.path.join(
                 self.segmentation_prefix, pngfilename)
@@ -80,12 +76,12 @@ class CocoBase(Dataset):
 
     def preprocess_image(self, image_path, segmentation_path):
         image = Image.open(image_path)
-        if not image.mode == "RGB":
+        if image.mode != "RGB":
             image = image.convert("RGB")
         image = np.array(image).astype(np.uint8)
 
         segmentation = Image.open(segmentation_path)
-        if not self.onehot and not segmentation.mode == "RGB":
+        if not self.onehot and segmentation.mode != "RGB":
             segmentation = segmentation.convert("RGB")
         segmentation = np.array(segmentation).astype(np.uint8)
         if self.onehot:
@@ -123,13 +119,13 @@ class CocoBase(Dataset):
         captions = self.img_id_to_captions[self.labels["image_ids"][i]]
         # randomly draw one of all available captions per image
         caption = captions[np.random.randint(0, len(captions))]
-        example = {"image": image,
-                   "caption": [str(caption[0])],
-                   "segmentation": segmentation,
-                   "img_path": img_path,
-                   "seg_path": seg_path
-                    }
-        return example
+        return {
+            "image": image,
+            "caption": [str(caption[0])],
+            "segmentation": segmentation,
+            "img_path": img_path,
+            "seg_path": seg_path,
+        }
 
 
 class CocoImagesAndCaptionsTrain(CocoBase):

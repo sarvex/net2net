@@ -47,8 +47,7 @@ class ResnetEncoder(nn.Module):
             assert not self.use_preprocess
             x = self.model.in_ch_match(x)
         features = self.features(x)
-        encoding = self.model.fc(features)
-        return encoding
+        return self.model.fc(features)
 
     def rescale(self, x):
         return 0.5 * (x + 1)

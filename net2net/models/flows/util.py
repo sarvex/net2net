@@ -39,5 +39,4 @@ def reshape_to_grid(x, num_samples=16, iw=28, ih=28, nc=1):
     x = x[:num_samples]
     x = x.detach().cpu()
     x = torch.reshape(x, (x.shape[0], nc, iw, ih))
-    xgrid = torchvision.utils.make_grid(x)
-    return xgrid
+    return torchvision.utils.make_grid(x)

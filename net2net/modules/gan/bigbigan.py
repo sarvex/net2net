@@ -80,8 +80,7 @@ class BigBiGAN(object):
         feed_dict = {self.gen_ph: z_np}
         x = self.sess.run(self.gen_samples, feed_dict=feed_dict)
         x = x.transpose(0,3,1,2)
-        x_torch = torch.tensor(x).to(device=z_torch.device)
-        return x_torch
+        return torch.tensor(x).to(device=z_torch.device)
 
     def eval(self):
         # interface requirement

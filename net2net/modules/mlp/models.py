@@ -17,10 +17,7 @@ class NeRFMLP(nn.Module):
         self.layers = nn.ModuleList()
         self.layers.append(nn.Linear(self.n_in, self.W))
         for i in range(1, self.D):
-            if i-1 in self.skips:
-                nin = self.W + self.n_in
-            else:
-                nin = self.W
+            nin = self.W + self.n_in if i-1 in self.skips else self.W
             self.layers.append(nn.Linear(nin, self.W))
         self.out_layer = nn.Linear(self.W, self.out_dim)
 
@@ -77,14 +74,20 @@ class Siren(nn.Module):
                  first_omega_0=30, hidden_omega_0=30.):
         super().__init__()
 
-        self.net = []
-        self.net.append(SineLayer(in_features, hidden_features,
-                                  is_first=True, omega_0=first_omega_0))
-
-        for i in range(hidden_layers):
-            self.net.append(SineLayer(hidden_features, hidden_features,
-                                      is_first=False, omega_0=hidden_omega_0))
-
+        self.net = [
+            SineLayer(
+                in_features, hidden_features, is_first=True, omega_0=first_omega_0
+            )
+        ]
+        self.net.extend(
+            SineLayer(
+                hidden_features,
+                hidden_features,
+                is_first=False,
+                omega_0=hidden_omega_0,
+            )
+            for _ in range(hidden_layers)
+        )
         if outermost_linear:
             final_linear = nn.Linear(hidden_features, out_features)
 
@@ -100,10 +103,7 @@ class Siren(nn.Module):
         self.net = nn.Sequential(*self.net)
 
     def forward(self, coords):
-        #coords = coords.clone().detach().requires_grad_(True)  # allows to take derivative w.r.t. input
-        output = self.net(coords)
-        #return output, coords
-        return output
+        return self.net(coords)
 
     def forward_with_activations(self, coords, retain_grad=False):
         '''Returns not only model output, but also intermediate activations.

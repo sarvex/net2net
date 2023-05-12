@@ -25,8 +25,7 @@ class Flow(pl.LightningModule):
         return zz, logdet
 
     def sample_like(self, query):
-        z = self.flow.sample(query.shape[0], device=query.device).float()
-        return z
+        return self.flow.sample(query.shape[0], device=query.device).float()
 
     def shared_step(self, batch, batch_idx):
         x, labels = batch
@@ -86,7 +85,7 @@ class Net2NetFlow(pl.LightningModule):
         for k in sd.keys():
             for ik in ignore_keys:
                 if k.startswith(ik):
-                    self.print("Deleting key {} from state_dict.".format(k))
+                    self.print(f"Deleting key {k} from state_dict.")
                     del sd[k]
         self.load_state_dict(sd, strict=False)
         print(f"Restored from {path}")
@@ -111,13 +110,11 @@ class Net2NetFlow(pl.LightningModule):
 
     @torch.no_grad()
     def sample_conditional(self, c):
-        z = self.flow.sample(c)
-        return z
+        return self.flow.sample(c)
 
     @torch.no_grad()
     def encode_to_z(self, x):
-        z = self.first_stage_model.encode(x).detach()
-        return z
+        return self.first_stage_model.encode(x).detach()
 
     @torch.no_grad()
     def encode_to_c(self, c):
@@ -126,12 +123,10 @@ class Net2NetFlow(pl.LightningModule):
 
     @torch.no_grad()
     def decode_to_img(self, z):
-        x = self.first_stage_model.decode(z.detach())
-        return x
+        return self.first_stage_model.decode(z.detach())
 
     @torch.no_grad()
     def log_images(self, batch, split=""):
-        log = dict()
         x = self.get_input(self.first_stage_key, batch).to(self.device)
         xc = self.get_input(self.cond_stage_key, batch, is_conditioning=True)
         if self.cond_stage_key not in ["text", "caption"]:
@@ -150,7 +145,7 @@ class Net2NetFlow(pl.LightningModule):
         zshift = self.flow.reverse(zz, cshift)
         xshift = self.decode_to_img(zshift)
 
-        log["inputs"] = x
+        log = {"inputs": x}
         if self.cond_stage_key not in ["text", "caption", "class"]:
             log["conditioning"] = xc
         else:
@@ -166,15 +161,12 @@ class Net2NetFlow(pl.LightningModule):
         x = batch[key]
         if key in ["caption", "text"]:
             x = list(x[0])
-        elif key in ["class"]:
-            pass
-        else:
+        elif key not in ["class"]:
             if len(x.shape) == 3:
                 x = x[..., None]
             x = x.permute(0, 3, 1, 2).to(memory_format=torch.contiguous_format)
-            if is_conditioning:
-                if self.interpolate_cond_size > -1:
-                    x = F.interpolate(x, size=(self.interpolate_cond_size, self.interpolate_cond_size))
+            if is_conditioning and self.interpolate_cond_size > -1:
+                x = F.interpolate(x, size=(self.interpolate_cond_size, self.interpolate_cond_size))
         return x
 
     def shared_step(self, batch, batch_idx, split="train"):
@@ -269,7 +261,6 @@ class Net2BigGANFlow(Net2NetFlow):
 
     @torch.no_grad()
     def log_images(self, batch, split=""):
-        log = dict()
         data = self.get_input(batch, move_to_device=True)
         z, xc, x = data["zcode"], data["xcon"], data["xgen"]
         c = self.encode_to_c(xc)
@@ -286,7 +277,7 @@ class Net2BigGANFlow(Net2NetFlow):
         xshift = self.first_stage_model.generate_from_embedding(zshift.squeeze(-1).squeeze(-1),
                                                                 cshift.squeeze(-1).squeeze(-1))
 
-        log["inputs"] = x
+        log = {"inputs": x}
         if self.cond_stage_key not in ["text", "caption", "class"]:
             log["conditioning"] = xc
         else:
@@ -299,5 +290,4 @@ class Net2BigGANFlow(Net2NetFlow):
 
     @torch.no_grad()
     def sample_conditional(self, c):
-        z = self.flow.sample(c)
-        return z
+        return self.flow.sample(c)

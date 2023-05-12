@@ -20,7 +20,7 @@ class UnconditionalFlatCouplingFlow(NormalizingFlow):
         self.n_flows = n_flows
         self.sub_layers = nn.ModuleList()
 
-        for flow in range(self.n_flows):
+        for _ in range(self.n_flows):
             self.sub_layers.append(UnconditionalFlatDoubleCouplingFlowBlock(
                                    self.in_channels, self.mid_channels,
                                    self.num_blocks)
@@ -63,7 +63,7 @@ class PureAffineFlatCouplingFlow(UnconditionalFlatCouplingFlow):
         super().__init__(in_channels, n_flows, hidden_dim, hidden_depth)
         del self.sub_layers
         self.sub_layers = nn.ModuleList()
-        for flow in range(self.n_flows):
+        for _ in range(self.n_flows):
             self.sub_layers.append(PureAffineDoubleCouplingFlowBlock(
                                    self.in_channels, self.mid_channels,
                                    self.num_blocks)
@@ -147,7 +147,7 @@ class ConditionalFlatCouplingFlow(nn.Module):
         self.sub_layers = nn.ModuleList()
         if self.conditioning_option.lower() != "none":
             self.conditioning_layers = nn.ModuleList()
-        for flow in range(self.n_flows):
+        for _ in range(self.n_flows):
             self.sub_layers.append(ConditionalFlatDoubleCouplingFlowBlock(
                 self.in_channels, self.cond_channels, self.mid_channels,
                 self.num_blocks, activation=activation)
@@ -156,13 +156,12 @@ class ConditionalFlatCouplingFlow(nn.Module):
                 self.conditioning_layers.append(nn.Conv2d(self.cond_channels, self.cond_channels, 1))
 
     def forward(self, x, cond, reverse=False):
-        hconds = list()
+        hconds = []
         if len(cond.shape) == 4:
-            if cond.shape[2] == 1:
-                assert cond.shape[3] == 1
-                cond = cond.squeeze(-1).squeeze(-1)
-            else:
+            if cond.shape[2] != 1:
                 raise ValueError("Spatial conditionings not yet supported. TODO")
+            assert cond.shape[3] == 1
+            cond = cond.squeeze(-1).squeeze(-1)
         embedding = self.embedder(cond.float())
         hcond = embedding[:, :, None, None]
         for i in range(self.n_flows):

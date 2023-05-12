@@ -42,19 +42,18 @@ def predict_landmarks(img, predictor_path=os.path.join(
     num_faces = len(dets)
     assert num_faces > 0, "Sorry, there were no faces found! Try with disabled 'Human Face Detection'."
     if DEBUG:
-        print("Number of faces detected: {}".format(num_faces))
+        print(f"Number of faces detected: {num_faces}")
 
     for k, d in enumerate(dets):
         if DEBUG:
-            print("Detection {}: Left: {} Top: {} Right: {} Bottom: {}".format(
-                k, d.left(), d.top(), d.right(), d.bottom()))
+            print(
+                f"Detection {k}: Left: {d.left()} Top: {d.top()} Right: {d.right()} Bottom: {d.bottom()}"
+            )
         # Get the landmarks/parts for the face in box d.
         shape = predictor(img, d)
-        landmarks = list()
-        for p in shape.parts():
-            landmarks.append(np.array([p.x, p.y]))
+        landmarks = [np.array([p.x, p.y]) for p in shape.parts()]
         if DEBUG:
-            print("{} landmarks in total".format(len(shape.parts())))
+            print(f"{len(shape.parts())} landmarks in total")
 
     return np.array(landmarks) # only return last detected shape
 
@@ -66,7 +65,7 @@ def make_aligned_images(img, face_landmarks, dst_dir='realign1024x1024', output_
     # Parse landmarks.
     # pylint: disable=unused-variable
     lm = face_landmarks
-    lm_chin          = lm[0  : 17]  # left-right
+    lm_chin = lm[:17]
     lm_eyebrow_left  = lm[17 : 22]  # left-right
     lm_eyebrow_right = lm[22 : 27]  # left-right
     lm_nose          = lm[27 : 31]  # top-down
@@ -113,7 +112,7 @@ def make_aligned_images(img, face_landmarks, dst_dir='realign1024x1024', output_
         img = Image.fromarray(img)
         img = img.crop(crop)
         img = np.array(img)
-        quad -= crop[0:2]
+        quad -= crop[:2]
 
     # Pad.
     pad = (int(np.floor(min(quad[:,0]))), int(np.floor(min(quad[:,1]))), int(np.ceil(max(quad[:,0]))), int(np.ceil(max(quad[:,1]))))
@@ -167,7 +166,7 @@ def get_interactive_image():
         if not has_dlib:
             st.info(DLIB_MSG)
         image = Image.open(image)
-        if not image.mode == "RGB":
+        if image.mode != "RGB":
             image = image.convert("RGB")
         image = np.array(image).astype(np.uint8)
         if st.sidebar.checkbox("Use Human Face Detection Algorithm", value=has_dlib):
@@ -202,8 +201,8 @@ def single_image_to_torch(x):
 
 def build_random_batch(dset, batch_size, idx=None):
     keys = dset[0].keys()
-    batch = {k:list() for k in keys}
-    for b in range(batch_size):
+    batch = {k: [] for k in keys}
+    for _ in range(batch_size):
         ridx = np.random.randint(0, len(dset)) if idx is None else idx
         ex = dset[ridx]
         for k in keys:
@@ -214,14 +213,13 @@ def build_random_batch(dset, batch_size, idx=None):
 
 
 def give_other_labels(label, label_dict):
-    other_labels = [l for l in label_dict if l is not label.item()]
-    return other_labels
+    return [l for l in label_dict if l is not label.item()]
 
 
 @torch.no_grad()
 def sample_all_labels(model, num_samples, label_dict):
     zz_sample = torch.randn(num_samples, 128, 1, 1).to(model.device)
-    decoded_samples = list()
+    decoded_samples = []
     for label in label_dict:
         cond = torch.LongTensor([label])
         cond = model.cond_stage_model.make_one_hot(cond).to(model.device)
@@ -233,7 +231,6 @@ def sample_all_labels(model, num_samples, label_dict):
 
 @torch.no_grad()
 def modify_input(model, example, label_dict, alpha=1.0):
-    log = dict()
     inputs = example["image"].permute(0, 3, 1, 2)
     label = example["class"]
     inputs = inputs.to(model.device)
@@ -241,7 +238,7 @@ def modify_input(model, example, label_dict, alpha=1.0):
     z = model.first_stage_model.encode(inputs, return_mode=True)
     zz, _ = model.flow(z, cond)
 
-    x_inv_rec = list()
+    x_inv_rec = []
     other_labels = give_other_labels(label, label_dict)
     for other_label in other_labels:
         cond = torch.LongTensor([other_label])
@@ -251,13 +248,12 @@ def modify_input(model, example, label_dict, alpha=1.0):
             z_inv_rec = (1.0-alpha)*z+alpha*z_inv_rec
         x_inv_rec.append(model.decode_to_img(z_inv_rec))
 
-    log["inputs"] = inputs
-    log["modified"] = x_inv_rec
+    log = {"inputs": inputs, "modified": x_inv_rec}
     return log, label.item(), other_labels
 
 
 def run(model, dset, label_dict, mode):
-    rev_ld = dict((v,k) for k, v in label_dict.items())
+    rev_ld = {v: k for k, v in label_dict.items()}
     st.sidebar.subheader("Input")
     image = get_interactive_image()
     if image is not None:
@@ -270,7 +266,7 @@ def run(model, dset, label_dict, mode):
         idx = st.sidebar.slider("Or Use Example from Dataset", 0, len(dset) - 1, value=0)
         example = dset[idx]
         in_label = label_dict[example["class"]]
-        st.sidebar.write("Input Label: {}".format(in_label))
+        st.sidebar.write(f"Input Label: {in_label}")
         example["image"] = torch.tensor(example["image"])[None, ...]
         example["class"] = torch.LongTensor([example["class"]])
 
@@ -289,7 +285,7 @@ def run(model, dset, label_dict, mode):
     animate = st.sidebar.button("animate translation")
 
     # go
-    st.header("{} - Input Modification".format(mode))
+    st.header(f"{mode} - Input Modification")
     output_text = st.empty()
     output_images = st.empty()
     info = st.empty()
@@ -310,7 +306,7 @@ def run(model, dset, label_dict, mode):
             x = ((x+1.0)*127.5).astype(np.uint8)
             writer.append_data(x[0])
             output_images.image(x)
-            info.write("{}%".format(int(100*alpha)))
+            info.write(f"{int(100 * alpha)}%")
         writer.close()
         st.video(outvid)
     else:
@@ -321,20 +317,19 @@ def run(model, dset, label_dict, mode):
 
     modified_labels_string = "("
     for k in other_labels:
-        modified_labels_string += label_dict[k]+", "
-    modified_labels_string = modified_labels_string[:-2]+")"
+        modified_labels_string += f"{label_dict[k]}, "
+    modified_labels_string = f"{modified_labels_string[:-2]})"
 
     output_text.write(
-        "Input **({})** & Modified Output **{}**".format(label_dict[current_label], modified_labels_string))
+        f"Input **({label_dict[current_label]})** & Modified Output **{modified_labels_string}**"
+    )
     output_images.image(bchw_to_st(images, grid=True, nrow=len(label_dict.keys())), clamp=True)
 
     st.write("________________________________________________")
     # samples
-    st.header("{} - Samples".format(mode))
-    labels_as_string = ""
-    for k in label_dict:
-        labels_as_string += label_dict[k]+", "
-    st.write("Generations of order: **{}**".format(labels_as_string[:-2]))
+    st.header(f"{mode} - Samples")
+    labels_as_string = "".join(f"{label_dict[k]}, " for k in label_dict)
+    st.write(f"Generations of order: **{labels_as_string[:-2]}**")
 
     st.sidebar.subheader("Sampling")
     num_samples = st.sidebar.slider("Number of Samples", 1, 4, value=2)
@@ -361,7 +356,7 @@ def get_parser():
         metavar="base_config.yaml",
         help="paths to base configs. Loaded from left-to-right. "
         "Parameters can be overwritten or added with command-line options of the form `--key value`.",
-        default=list(),
+        default=[],
     )
     parser.add_argument(
         "-c",
@@ -392,8 +387,7 @@ def get_data(config):
     data = instantiate_from_config(config.data)
     data.prepare_data()
     data.setup()
-    dset = data.datasets["validation"]
-    return dset
+    return data.datasets["validation"]
 
 
 @st.cache(allow_output_mutation=True)
@@ -437,7 +431,7 @@ if __name__ == "__main__":
         ckpt = os.path.join(CKPT_ROOT, "2020-12-02T16-19-39_portraits_photography_256/checkpoints/epoch=000003.ckpt")
         label_dict = {0: "Photography", 1: "Oil Portrait"}
     else:
-        raise ValueError("Unknown mode {}".format(mode))
+        raise ValueError(f"Unknown mode {mode}")
 
     logdir = path.rstrip("/")
     base_configs = sorted(glob.glob(os.path.join(logdir, "configs/*-project.yaml")))
@@ -466,6 +460,6 @@ if __name__ == "__main__":
 
     dset, model, global_step = load_model_and_dset(config, ckpt, gpu, eval_mode)
     if DEBUG:
-        st.info("Global Step: {}".format(global_step))
+        st.info(f"Global Step: {global_step}")
 
     run(model, dset, label_dict=label_dict, mode=mode)

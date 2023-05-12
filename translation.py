@@ -49,7 +49,7 @@ def get_parser(**parser_kwargs):
         metavar="base_config.yaml",
         help="paths to base configs. Loaded from left-to-right. "
         "Parameters can be overwritten or added with command-line options of the form `--key value`.",
-        default=list(),
+        default=[],
     )
     parser.add_argument(
         "-t",
@@ -115,7 +115,7 @@ class DataModuleFromConfig(pl.LightningDataModule):
                  num_workers=None):
         super().__init__()
         self.batch_size = batch_size
-        self.dataset_configs = dict()
+        self.dataset_configs = {}
         self.num_workers = num_workers if num_workers is not None else batch_size*2
         if train is not None:
             self.dataset_configs["train"] = train
@@ -132,9 +132,10 @@ class DataModuleFromConfig(pl.LightningDataModule):
             instantiate_from_config(data_cfg)
 
     def setup(self, stage=None):
-        self.datasets = dict(
-            (k, instantiate_from_config(self.dataset_configs[k]))
-            for k in self.dataset_configs)
+        self.datasets = {
+            k: instantiate_from_config(self.dataset_configs[k])
+            for k in self.dataset_configs
+        }
 
     def _train_dataloader(self):
         return DataLoader(self.datasets["train"], batch_size=self.batch_size,
@@ -170,31 +171,29 @@ class SetupCallback(Callback):
 
             print("Project config")
             print(self.config.pretty())
-            OmegaConf.save(self.config,
-                           os.path.join(self.cfgdir, "{}-project.yaml".format(self.now)))
+            OmegaConf.save(
+                self.config, os.path.join(self.cfgdir, f"{self.now}-project.yaml")
+            )
 
             print("Lightning config")
             print(self.lightning_config.pretty())
-            OmegaConf.save(OmegaConf.create({"lightning": self.lightning_config}),
-                           os.path.join(self.cfgdir, "{}-lightning.yaml".format(self.now)))
+            OmegaConf.save(
+                OmegaConf.create({"lightning": self.lightning_config}),
+                os.path.join(self.cfgdir, f"{self.now}-lightning.yaml"),
+            )
 
-        else:
-            # ModelCheckpoint callback created log directory --- remove it
-            if not self.resume and os.path.exists(self.logdir):
-                dst, name = os.path.split(self.logdir)
-                dst = os.path.join(dst, "child_runs", name)
-                os.makedirs(os.path.split(dst)[0], exist_ok=True)
-                try:
-                    os.rename(self.logdir, dst)
-                except FileNotFoundError:
-                    pass
+        elif not self.resume and os.path.exists(self.logdir):
+            dst, name = os.path.split(self.logdir)
+            dst = os.path.join(dst, "child_runs", name)
+            os.makedirs(os.path.split(dst)[0], exist_ok=True)
+            try:
+                os.rename(self.logdir, dst)
+            except FileNotFoundError:
+                pass
 
     @rank_zero_only
     def on_train_end(self, trainer, pl_module):
-        # trainer only saves last step if validation_step is not implemented
-        # but we want to save in that case, too
-        should_activate = trainer.is_overridden('validation_step')
-        if should_activate:
+        if should_activate := trainer.is_overridden('validation_step'):
             checkpoint_callbacks = [c for c in trainer.callbacks if isinstance(c, ModelCheckpoint)]
             [c.on_validation_end(trainer, trainer.get_model()) for c in checkpoint_callbacks]
 
@@ -213,7 +212,7 @@ class ImageLogger(Callback):
 
     @rank_zero_only
     def _wandb(self, pl_module, images, batch_idx, split):
-        grids = dict()
+        grids = {}
         for k in images:
             grid = torchvision.utils.make_grid(images[k])
             grids[f"{split}/{k}"] = wandb.Image(grid)

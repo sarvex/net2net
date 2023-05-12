@@ -23,9 +23,7 @@ class FaceNet(nn.Module):
         # output are logits of size 8631 or embeddings of size 512
         x = self._pre_process(x)
         emb = self.net(x)
-        if return_logits:
-            return self.net.logits(emb)
-        return emb
+        return self.net.logits(emb) if return_logits else emb
 
     def encode(self, x):
         return self(x)

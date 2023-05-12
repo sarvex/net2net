@@ -70,7 +70,7 @@ class Img2Text(nn.Module):
         return [0.229, 0.224, 0.225]
 
     def forward(self, x):
-        captions = list()
+        captions = []
         for subx in x:
             subx = subx.unsqueeze(0)
             captions.append(self.make_single_caption(subx))
@@ -80,12 +80,7 @@ class Img2Text(nn.Module):
         seq = self.caption_image_beam_search(x)[0][0]
         words = [self.rev_word_map[ind] for ind in seq]
         words = words[:50]
-        #if len(words) > 50:
-        #    return np.array(['<toolong>'])
-        text = ''
-        for word in words:
-            text += word + ' '
-        return text
+        return ''.join(f'{word} ' for word in words)
 
     def caption_image_beam_search(self, image, beam_size=3):
         """
@@ -109,8 +104,8 @@ class Img2Text(nn.Module):
         encoder_out_ = encoder_out_.view(batch_size, -1, encoder_dim)  # (1, num_pixels, encoder_dim)
         num_pixels = encoder_out_.size(1)
 
-        sequences = list()
-        alphas_ = list()
+        sequences = []
+        alphas_ = []
         # We'll treat the problem as having a batch size of k per example
         for single_example in encoder_out_:
             single_example = single_example[None, ...]
@@ -129,9 +124,9 @@ class Img2Text(nn.Module):
             seqs_alpha = torch.ones(k, 1, enc_image_size, enc_image_size).to(self.device)  # (k, 1, enc_image_size, enc_image_size)
 
             # Lists to store completed sequences, their alphas and scores
-            complete_seqs = list()
-            complete_seqs_alpha = list()
-            complete_seqs_scores = list()
+            complete_seqs = []
+            complete_seqs_alpha = []
+            complete_seqs_scores = []
 
             # Start decoding
             step = 1
@@ -172,7 +167,7 @@ class Img2Text(nn.Module):
                 complete_inds = list(set(range(len(next_word_inds))) - set(incomplete_inds))
 
                 # Set aside complete sequences
-                if len(complete_inds) > 0:
+                if complete_inds:
                     complete_seqs.extend(seqs[complete_inds].tolist())
                     complete_seqs_alpha.extend(seqs_alpha[complete_inds].tolist())
                     complete_seqs_scores.extend(top_k_scores[complete_inds])
@@ -237,15 +232,19 @@ class Img2Text(nn.Module):
             words = [self.rev_word_map[ind] for ind in seq]
             if len(words) > 50:
                 return
-            text = ''
-            for word in words:
-                text += word + ' '
-
-            ax[i, j].text(0, 1, '%s' % (text), color='black', backgroundcolor='white', fontsize=12)
+            text = ''.join(f'{word} ' for word in words)
+            ax[i, j].text(
+                0,
+                1,
+                f'{text}',
+                color='black',
+                backgroundcolor='white',
+                fontsize=12,
+            )
             ax[i, j].imshow(image)
             ax[i, j].axis('off')
 
-        plt.savefig(os.path.join(root, img_name + '.png'))
+        plt.savefig(os.path.join(root, f'{img_name}.png'))
 
 
 if __name__ == '__main__':

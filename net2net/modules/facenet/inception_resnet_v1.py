@@ -142,8 +142,7 @@ class Mixed_6a(nn.Module):
         x0 = self.branch0(x)
         x1 = self.branch1(x)
         x2 = self.branch2(x)
-        out = torch.cat((x0, x1, x2), 1)
-        return out
+        return torch.cat((x0, x1, x2), 1)
 
 
 class Mixed_7a(nn.Module):
@@ -174,8 +173,7 @@ class Mixed_7a(nn.Module):
         x1 = self.branch1(x)
         x2 = self.branch2(x)
         x3 = self.branch3(x)
-        out = torch.cat((x0, x1, x2, x3), 1)
-        return out
+        return torch.cat((x0, x1, x2, x3), 1)
 
 
 class InceptionResnetV1(nn.Module):
@@ -324,24 +322,23 @@ def load_weights(mdl, name):
 
     state_dict = {}
     for i, path in enumerate([features_path, logits_path]):
-        cached_file = os.path.join(model_dir, '{}_{}.pt'.format(name, path[-10:]))
+        cached_file = os.path.join(model_dir, f'{name}_{path[-10:]}.pt')
         if not os.path.exists(cached_file):
-            print('Downloading parameters ({}/2)'.format(i+1))
+            print(f'Downloading parameters ({i + 1}/2)')
             s = requests.Session()
             s.mount('https://', HTTPAdapter(max_retries=10))
             r = s.get(path, allow_redirects=True)
             with open(cached_file, 'wb') as f:
                 f.write(r.content)
-        state_dict.update(torch.load(cached_file))
+        state_dict |= torch.load(cached_file)
 
     mdl.load_state_dict(state_dict)
 
 
 def get_torch_home():
-    torch_home = os.path.expanduser(
+    return os.path.expanduser(
         os.getenv(
             'TORCH_HOME',
-            os.path.join(os.getenv('XDG_CACHE_HOME', '~/.cache'), 'torch')
+            os.path.join(os.getenv('XDG_CACHE_HOME', '~/.cache'), 'torch'),
         )
     )
-    return torch_home

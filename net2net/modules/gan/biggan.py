@@ -27,9 +27,9 @@ class SpectralNorm(nn.Module):
             self._make_params()
 
     def _update_u_v(self):
-        u = getattr(self.module, self.name + "_u")
-        v = getattr(self.module, self.name + "_v")
-        w = getattr(self.module, self.name + "_bar")
+        u = getattr(self.module, f"{self.name}_u")
+        v = getattr(self.module, f"{self.name}_v")
+        w = getattr(self.module, f"{self.name}_bar")
 
         height = w.data.shape[0]
         _w = w.view(height, -1)
@@ -42,9 +42,9 @@ class SpectralNorm(nn.Module):
 
     def _made_params(self):
         try:
-            getattr(self.module, self.name + "_u")
-            getattr(self.module, self.name + "_v")
-            getattr(self.module, self.name + "_bar")
+            getattr(self.module, f"{self.name}_u")
+            getattr(self.module, f"{self.name}_v")
+            getattr(self.module, f"{self.name}_bar")
             return True
         except AttributeError:
             return False
@@ -61,9 +61,9 @@ class SpectralNorm(nn.Module):
         w_bar = Parameter(w.data)
 
         del self.module._parameters[self.name]
-        self.module.register_parameter(self.name + "_u", u)
-        self.module.register_parameter(self.name + "_v", v)
-        self.module.register_parameter(self.name + "_bar", w_bar)
+        self.module.register_parameter(f"{self.name}_u", u)
+        self.module.register_parameter(f"{self.name}_v", v)
+        self.module.register_parameter(f"{self.name}_bar", w_bar)
 
     def forward(self, *args):
         self._update_u_v()
@@ -207,14 +207,13 @@ class GBlock(nn.Module):
             else:
                 self.HyperBN = BatchNorm2dWrap(in_channel, z_dim)
                 self.HyperBN_1 = BatchNorm2dWrap(out_channel, z_dim)
-        else:
-            if use_actnorm:
-                if conditional:
-                    self.HyperBN = ConditionalActNorm2d(in_channel, z_dim)
-                    self.HyperBN_1 = ConditionalActNorm2d(out_channel, z_dim)
-                else:
-                    self.HyperBN = ActNorm2dWrap(in_channel)
-                    self.HyperBN_1 = ActNorm2dWrap(out_channel)
+        elif use_actnorm:
+            if conditional:
+                self.HyperBN = ConditionalActNorm2d(in_channel, z_dim)
+                self.HyperBN_1 = ConditionalActNorm2d(out_channel, z_dim)
+            else:
+                self.HyperBN = ActNorm2dWrap(in_channel)
+                self.HyperBN_1 = ActNorm2dWrap(out_channel)
 
     def forward(self, input, condition=None):
         out = input
@@ -235,16 +234,14 @@ class GBlock(nn.Module):
         if self.downsample:
             out = F.avg_pool2d(out, 2)
 
+        skip = input
         if self.skip_proj:
-            skip = input
             if self.upsample:
                 # different form papers
                 skip = F.interpolate(skip, scale_factor=2)
             skip = self.conv_sc(skip)
             if self.downsample:
                 skip = F.avg_pool2d(skip, 2)
-        else:
-            skip = input
         return out + skip
 
 
@@ -281,11 +278,7 @@ class Generator128(nn.Module):
 
     def forward(self, input, class_id, from_class_embedding=False):
         codes = torch.chunk(input, self.num_split, 1)
-        if from_class_embedding:
-            class_emb = class_id  # 128
-        else:
-            class_emb = self.linear(class_id)  # 128
-
+        class_emb = class_id if from_class_embedding else self.linear(class_id)
         out = self.G_linear(codes[0])
         out = out.view(-1, 4, 4, self.first_view).permute(0, 3, 1, 2)
         for i, (code, GBlock) in enumerate(zip(codes[1:], self.GBlock)):
@@ -318,7 +311,7 @@ class VariableDimGenerator128(Generator128):
     def __init__(self, code_dim, *args, extra_z_dims=list(), **kwargs):
         super().__init__(*args, **kwargs)
         first_split = code_dim - (self.num_split-1)*20
-        self.split_at = [first_split] + [20 for i in range(self.num_split-1)]
+        self.split_at = [first_split] + [20 for _ in range(self.num_split-1)]
         self.extra_z_dims = extra_z_dims
         self.extra_linears = nn.ModuleList()
         for extra_z_dim in self.extra_z_dims:
@@ -380,10 +373,7 @@ class Generator256(nn.Module):
 
     def forward(self, input, class_id, from_class_embedding=False):
         codes = torch.chunk(input, self.num_split, 1)
-        if from_class_embedding:
-            class_emb = class_id  # 128
-        else:
-            class_emb = self.linear(class_id)  # 128
+        class_emb = class_id if from_class_embedding else self.linear(class_id)
         out = self.G_linear(codes[0])
         out = out.view(-1, 4, 4, self.first_view).permute(0, 3, 1, 2)
         for i, (code, GBlock) in enumerate(zip(codes[1:], self.GBlock)):
@@ -415,7 +405,7 @@ class VariableDimGenerator256(Generator256):
     def __init__(self, code_dim, *args, extra_z_dims=list(), **kwargs):
         super().__init__(*args, **kwargs)
         first_split = code_dim - (self.num_split-1)*20
-        self.split_at = [first_split] + [20 for i in range(self.num_split-1)]
+        self.split_at = [first_split] + [20 for _ in range(self.num_split-1)]
         self.extra_z_dims = extra_z_dims
         self.extra_linears = nn.ModuleList()
         for extra_z_dim in self.extra_z_dims:

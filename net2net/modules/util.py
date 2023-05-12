@@ -10,7 +10,7 @@ from PIL import Image, ImageDraw
 
 def log_txt_as_img(wh, xc):
     b = len(xc)
-    txts = list()
+    txts = []
     for bi in range(b):
         txt = Image.new("RGB", wh, color="white")
         draw = ImageDraw.Draw(txt)
@@ -89,9 +89,7 @@ class TpsGridGen(nn.Module):
 
 
     def forward(self, theta):
-        warped_grid = self.apply_transformation(theta,torch.cat((self.grid_X,self.grid_Y),3))
-
-        return warped_grid
+        return self.apply_transformation(theta,torch.cat((self.grid_X,self.grid_Y),3))
 
     def compute_L_inverse(self,X,Y):
         N = X.size()[0] # num of points (along dim 0)
@@ -233,5 +231,4 @@ def random_tps(*args, grid_size=4, reg_factor=0, strength_factor=1.0):
 
 
 def count_params(model):
-    total_params = sum(p.numel() for p in model.parameters())
-    return total_params
+    return sum(p.numel() for p in model.parameters())

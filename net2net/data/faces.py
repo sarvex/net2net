@@ -84,7 +84,7 @@ class CelebABase(Dataset):
     ]
 
     def __init__(self, config=None):
-        self.config = config or dict()
+        self.config = config or {}
         self._prepare()
         self._load()
 
@@ -95,13 +95,14 @@ class CelebABase(Dataset):
             print("preparing CelebA dataset...")
             # prep
             root = Path(self.root)
-            local_files = dict()
+            local_files = {
+                self.FILES[0]: ndu.prompt_download(
+                    self.FILES[0], self.URL, root, content_dir="img_align_celeba"
+                )
+            }
 
-            local_files[self.FILES[0]] = ndu.prompt_download(
-                self.FILES[0], self.URL, root, content_dir="img_align_celeba"
-            )
             if not os.path.exists(os.path.join(root, "img_align_celeba")):
-                print("Extracting {}".format(local_files[self.FILES[0]]))
+                print(f"Extracting {local_files[self.FILES[0]]}")
                 ndu.unpack(local_files["img_align_celeba.zip"])
 
             for v in self.FILES[1:]:
@@ -129,7 +130,7 @@ class CelebABase(Dataset):
 
             data = {
                 "fname": np.array(
-                    [os.path.join("img_align_celeba/{}".format(s)) for s in fnames]
+                    [os.path.join(f"img_align_celeba/{s}") for s in fnames]
                 ),
                 "partition": list_eval_partition,
                 "identity": identity_celeba,
@@ -152,7 +153,7 @@ class CelebABase(Dataset):
             self._data = pickle.load(f)
         split = self._get_split()
         assert split in ["train", "test", "val"]
-        print("Using split: {}".format(split))
+        print(f"Using split: {split}")
         if split == "train":
             self.split_indices = np.where(self._data["partition"] == 0)[0]
         elif split == "val":
@@ -168,11 +169,9 @@ class CelebABase(Dataset):
         self._length = self.labels["fname"].shape[0]
 
     def _load_example(self, i):
-        example = dict()
-        for k in self.labels:
-            example[k] = self.labels[k][i]
+        example = {k: self.labels[k][i] for k in self.labels}
         example["image"] = Image.open(os.path.join(self.root, example["fname"]))
-        if not example["image"].mode == "RGB":
+        if example["image"].mode != "RGB":
             example["image"] = example["image"].convert("RGB")
         example["image"] = np.array(example["image"])
         return example

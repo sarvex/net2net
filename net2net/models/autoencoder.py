@@ -19,7 +19,7 @@ class BigAE(pl.LightningModule):
         self.loss = instantiate_from_config(loss_config)
 
         if ckpt_path is not None:
-            print("Loading model from {}".format(ckpt_path))
+            print(f"Loading model from {ckpt_path}")
             self.init_from_ckpt(ckpt_path, ignore_keys=ignore_keys)
 
     def init_from_ckpt(self, path, ignore_keys=list()):
@@ -32,7 +32,7 @@ class BigAE(pl.LightningModule):
         for k in keys:
             for ik in ignore_keys:
                 if k.startswith(ik):
-                    print("Deleting key {} from state_dict.".format(k))
+                    print(f"Deleting key {k} from state_dict.")
                     del sd[k]
         missing, unexpected = self.load_state_dict(sd, strict=False)
         if len(missing) > 0:
@@ -43,9 +43,7 @@ class BigAE(pl.LightningModule):
     def encode(self, x, return_mode=False):
         moments = self.encoder(x)
         posterior = DiagonalGaussianDistribution(moments, deterministic=False)
-        if return_mode:
-            return posterior.mode()
-        return posterior.sample()
+        return posterior.mode() if return_mode else posterior.sample()
 
     def decode(self, z):
         if len(z.shape) == 4:
@@ -63,13 +61,10 @@ class BigAE(pl.LightningModule):
         return getattr(self.decoder.decoder.colorize.module, 'weight_bar')
 
     def log_images(self, batch, split=""):
-        log = dict()
         inputs = batch["image"].permute(0, 3, 1, 2)
         inputs = inputs.to(self.device)
         reconstructions, posterior = self(inputs)
-        log["inputs"] = inputs
-        log["reconstructions"] = reconstructions
-        return log
+        return {"inputs": inputs, "reconstructions": reconstructions}
 
     def training_step(self, batch, batch_idx, optimizer_idx):
         inputs = batch["image"].permute(0, 3, 1, 2)
@@ -124,7 +119,7 @@ class BasicAE(pl.LightningModule):
         self.autoencoder = instantiate_from_config(ae_config)
         self.loss = instantiate_from_config(loss_config)
         if ckpt_path is not None:
-            print("Loading model from {}".format(ckpt_path))
+            print(f"Loading model from {ckpt_path}")
             self.init_from_ckpt(ckpt_path, ignore_keys=ignore_keys)
 
     def init_from_ckpt(self, path, ignore_keys=list()):
@@ -137,7 +132,7 @@ class BasicAE(pl.LightningModule):
         for k in keys:
             for ik in ignore_keys:
                 if k.startswith(ik):
-                    print("Deleting key {} from state_dict.".format(k))
+                    print(f"Deleting key {k} from state_dict.")
                     del sd[k]
         self.load_state_dict(sd, strict=False)
 
@@ -149,20 +144,16 @@ class BasicAE(pl.LightningModule):
 
     def encode(self, x):
         posterior = self.autoencoder.encode(x)
-        h = posterior.sample()
-        return h
+        return posterior.sample()
 
     def get_last_layer(self):
         return self.autoencoder.get_last_layer()
 
     def log_images(self, batch, split=""):
-        log = dict()
         inputs = batch["image"].permute(0, 3, 1, 2)
         inputs = inputs.to(self.device)
         reconstructions, posterior = self(inputs)
-        log["inputs"] = inputs
-        log["reconstructions"] = reconstructions
-        return log
+        return {"inputs": inputs, "reconstructions": reconstructions}
 
     def training_step(self, batch, batch_idx, optimizer_idx):
         inputs = batch["image"].permute(0, 3, 1, 2)

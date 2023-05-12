@@ -25,7 +25,7 @@ class TrainSamples(Dataset, PRNGMixin):
         self.n_classes = n_classes
         self.truncation_threshold = truncation
         if self.truncation_threshold > 0:
-            print("Applying truncation at level {}".format(self.truncation_threshold))
+            print(f"Applying truncation at level {self.truncation_threshold}")
 
     def __len__(self):
         return self.n_samples
@@ -49,18 +49,16 @@ class TestSamples(Dataset):
         self.n_classes = n_classes
         self.truncation_threshold = truncation
         if self.truncation_threshold > 0:
-            print("Applying truncation at level {}".format(self.truncation_threshold))
+            print(f"Applying truncation at level {self.truncation_threshold}")
         self.zs = self.prng.randn(self.n_samples, *self.z_shape)
         if self.truncation_threshold > 0:
-            print("Applying truncation at level {}".format(self.truncation_threshold))
-            ix = 0
-            for z in tqdm(self.zs, desc="Truncation:"):
+            print(f"Applying truncation at level {self.truncation_threshold}")
+            for ix, z in enumerate(tqdm(self.zs, desc="Truncation:")):
                 for k, zi in enumerate(z):
                     while abs(zi) > self.truncation_threshold:
                         zi = self.prng.randn(1)
                     z[k] = zi
                 self.zs[ix] = z
-                ix += 1
             print("Created truncated test data.")
         self.clss = self.prng.randint(self.n_classes, size=(self.n_samples,))
 
@@ -79,7 +77,7 @@ class RestrictedTrainSamples(Dataset, PRNGMixin):
         self.classes = np.loadtxt(index_path).astype(int)
         self.truncation_threshold = truncation
         if self.truncation_threshold > 0:
-            print("Applying truncation at level {}".format(self.truncation_threshold))
+            print(f"Applying truncation at level {self.truncation_threshold}")
 
     def __len__(self):
         return self.n_samples
@@ -108,15 +106,13 @@ class RestrictedTestSamples(Dataset):
         self.truncation_threshold = truncation
         self.zs = self.prng.randn(self.n_samples, *self.z_shape)
         if self.truncation_threshold > 0:
-            print("Applying truncation at level {}".format(self.truncation_threshold))
-            ix = 0
-            for z in tqdm(self.zs, desc="Truncation:"):
+            print(f"Applying truncation at level {self.truncation_threshold}")
+            for ix, z in enumerate(tqdm(self.zs, desc="Truncation:")):
                 for k, zi in enumerate(z):
                     while abs(zi) > self.truncation_threshold:
                         zi = self.prng.randn(1)
                     z[k] = zi
                 self.zs[ix] = z
-                ix += 1
             print("Created truncated test data.")
 
     def __len__(self):

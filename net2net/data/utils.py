@@ -18,7 +18,7 @@ def unpack(path):
             f.extractall(path=os.path.split(path)[0])
     else:
         raise NotImplementedError(
-            "Unknown file extension: {}".format(os.path.splitext(path)[1])
+            f"Unknown file extension: {os.path.splitext(path)[1]}"
         )
 
 
@@ -55,15 +55,9 @@ def prompt_download(file_, source, target_dir, content_dir=None):
             os.path.join(target_dir, content_dir)
         ):
             break
-        print(
-            "Please download '{}' from '{}' to '{}'.".format(file_, source, targetpath)
-        )
+        print(f"Please download '{file_}' from '{source}' to '{targetpath}'.")
         if content_dir is not None:
-            print(
-                "Or place its content into '{}'.".format(
-                    os.path.join(target_dir, content_dir)
-                )
-            )
+            print(f"Or place its content into '{os.path.join(target_dir, content_dir)}'.")
         input("Press Enter when done...")
     return targetpath
 
@@ -79,7 +73,7 @@ def download_url(file_, url, target_dir):
 
 
 def download_urls(urls, target_dir):
-    paths = dict()
+    paths = {}
     for fname, url in urls.items():
         outpath = download_url(fname, url, target_dir)
         paths[fname] = outpath
